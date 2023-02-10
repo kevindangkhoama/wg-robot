@@ -1,1 +1,1 @@
-# wgrobot
+# WireGuard Robot
