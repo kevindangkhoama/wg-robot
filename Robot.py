@@ -41,20 +41,3 @@ if len(sys.argv) == 2:
 else:
     # Invalid Command
     print("Usage: Robot.py <User_Public.txt>", file=sys.stderr)
-    
-# # Testing    
-# if __name__ == "__main__":
-#     # Test User
-#     testuserprivate = PrivateKey.generate()
-#     testuserpublic = testuserprivate.public_key
-    
-#     # Random WireGuard key pair 
-#     testwgprivate = PrivateKey.generate()
-#     testwgpublic = testwgprivate.public_key
-
-#     # Test Functions
-#     encrpyted_config = WgSetupGenerate(testuserpublic, testwgprivate)
-#     print("\n")
-#     print(encrpyted_config)
-#     print("\n")
-#     WgSetupConfigure(testwgpublic, testuserprivate, encrpyted_config)    
