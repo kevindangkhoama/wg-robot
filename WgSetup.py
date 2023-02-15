@@ -5,22 +5,26 @@ import nacl.utils
 import base64
 from nacl.public import PrivateKey,PublicKey, Box
 
-
 def Generate():
     # Create Key Pairs
     userprivate = PrivateKey.generate()
     userpublic = userprivate.public_key
-    # Get the absolute path of the home directory
-    home_dir = os.path.expanduser('~')
     
     userprivate = base64.b64encode(userprivate.encode())
     userpublic = base64.b64encode(userpublic.encode())
     
-    # Write the private and public keys as strings to the home directory
-    with open(os.path.join(home_dir, 'User_Private.txt'), 'wb') as fp:
-        fp.write(userprivate)
-    with open(os.path.join(home_dir, 'User_Public.txt'), 'wb') as fp:
-        fp.write(userpublic)
+    print(f"Here is your private key: {userprivate.decode()}")
+    print(f"Here is your public key: {userpublic.decode()}")
+    
+    # # Get the absolute path of the home directory
+    # home_dir = os.path.expanduser('~')
+    
+    # # Write the private and public keys as strings to the home directory
+    # with open(os.path.join(home_dir, 'User_Private.txt'), 'wb') as fp:
+    #     fp.write(userprivate)
+        
+    # with open(os.path.join(home_dir, 'User_Public.txt'), 'wb') as fp:
+    #     fp.write(userpublic)
 
     
 def Decrypter(robot_public, user_private, encrpyted):
@@ -38,12 +42,12 @@ def Decrypter(robot_public, user_private, encrpyted):
     
     # Decrypt encrypted config
     decoded = user_box.decrypt(encrypted)
-    decoded = decoded.decode('utf-8')
     
-    # Export to text file
-    home_dir = os.path.expanduser('~')
-    with open(os.path.join(home_dir, 'Decrypted_Config.txt'), 'w') as fp:
-        fp.write(decoded)
+    print(f"Here is your decoded config: {decoded.decode()}")
+    # # Export to text file
+    # home_dir = os.path.expanduser('~')
+    # with open(os.path.join(home_dir, 'Decrypted_Config.txt'), 'w') as fp:
+    #     fp.write(decoded)
     
 
 # Command Line Arguments    
@@ -55,14 +59,16 @@ if len(sys.argv) == 1:
     
 elif len(sys.argv) == 3:
     print("Decrypting...")
-
+    sys.argv.pop(0)
     robot_public = "dnBijRHCphJpBoNxFuflGQqpWS8pWbnOBlPLQHNn3H0="
+    encrypted = sys.argv.pop(0)
+    user_private = sys.argv.pop(0)
     
-    # Open text files and store as a variable
-    with open('Encrypted_Config.txt', 'r') as fp:
-        encrypted = fp.read()
-    with open('User_Private.txt', 'r') as fp:
-        user_private = fp.read()
+    # # Open text files and store as a variable
+    # with open('Encrypted_Config.txt', 'r') as fp:
+    #     encrypted = fp.read()
+    # with open('User_Private.txt', 'r') as fp:
+    #     user_private = fp.read()
     
     # Run decrypter    
     Decrypter(robot_public, user_private, encrypted)
