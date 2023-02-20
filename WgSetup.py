@@ -27,18 +27,25 @@ def Generate():
     #     fp.write(userpublic)
 
     
-def Decrypter(robot_public, user_private, encrpyted):
+def Decrypter(robot, user_private, encrpyted):
+    # Format: 'Robot' : ["Public Key"],
+    robot_table = {
+        'Ram': 'W6zJkCbIPNJLhtlUdDemzwNbNLk7MRvsxMICLB1Z5Ck=',
+        'Tron': 'Public Key2',
+        'Flynn': 'Public Key3'
+        }
+    
     # Decode all base64 variables
     encrypted = base64.b64decode(encrpyted)
-    robot_public = base64.b64decode(robot_public)
+    robot = base64.b64decode(robot_table[robot])
     user_private = base64.b64decode(user_private)
     
-    # Convert into Key objects
-    robot_public = nacl.public.PublicKey(robot_public)
+    # Convert into Key objectss
+    robot = nacl.public.PublicKey(robot)
     user_private = nacl.public.PrivateKey(user_private)
     
     # Create User Box
-    user_box = Box(user_private, robot_public)
+    user_box = Box(user_private, robot)
     
     # Decrypt encrypted config
     decoded = user_box.decrypt(encrypted)
@@ -57,10 +64,10 @@ if len(sys.argv) == 1:
     Generate()
     print("Done")
     
-elif len(sys.argv) == 3:
+elif len(sys.argv) == 4:
     print("Decrypting...")
     sys.argv.pop(0)
-    robot_public = "dnBijRHCphJpBoNxFuflGQqpWS8pWbnOBlPLQHNn3H0="
+    robot = sys.argv.pop(0)
     encrypted = sys.argv.pop(0)
     user_private = sys.argv.pop(0)
     
@@ -71,7 +78,7 @@ elif len(sys.argv) == 3:
     #     user_private = fp.read()
     
     # Run decrypter    
-    Decrypter(robot_public, user_private, encrypted)
+    Decrypter(robot, user_private, encrypted)
     
     print("Done")
     
@@ -80,5 +87,5 @@ else:
     print("Invalid argument(s)")
     print("Usage:")
     print("Generate Keys: WgSetup.py", file=sys.stderr)
-    print("Decrypt: WgSetup.py <Ecrypted> <User_Private>", file=sys.stderr)
+    print("Decrypt: WgSetup.py <Robot>, <Ecrypted> <User_Private>", file=sys.stderr)
     sys.exit(1)
