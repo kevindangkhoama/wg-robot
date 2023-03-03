@@ -5,6 +5,8 @@ import nacl.utils
 import base64
 from nacl.public import PrivateKey,PublicKey, Box
 
+home_dir = os.path.expanduser('~')
+
 def Generate():
     # Create Key Pairs
     userprivate = PrivateKey.generate()
@@ -15,9 +17,6 @@ def Generate():
     
     print(f"Here is your private key: {userprivate.decode()}")
     print(f"Here is your public key: {userpublic.decode()}")
-    
-    # # Get the absolute path of the home directory
-    # home_dir = os.path.expanduser('~')
     
     # # Write the private and public keys as strings to the home directory
     # with open(os.path.join(home_dir, 'User_Private.txt'), 'wb') as fp:
@@ -52,7 +51,6 @@ def Decrypter(robot, user_private, encrpyted):
     
     print(f"Here is your decoded config: {decoded.decode()}")
     # # Export to text file
-    # home_dir = os.path.expanduser('~')
     # with open(os.path.join(home_dir, 'Decrypted_Config.txt'), 'w') as fp:
     #     fp.write(decoded)
     

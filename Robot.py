@@ -1,13 +1,75 @@
 #!/usr/bin/python3
+import ipaddress
 import sys
 import os
+import json
 import nacl.utils
 import base64
+import random
+from random import randint
 from nacl.public import PrivateKey, PublicKey, Box
+
+
+def json_location(file_name):
+    home_dir = os.path.expanduser('~')
+    full_path = os.path.join(home_dir, file_name)
+    return os.path.exists(full_path)
+
+# def generate_private_ip():
+#     ip = ["10"]
+#     # Generate random numbers from start range to end range 
+#     for i in range(4):
+#         ip.append(str(random.randint(0, 255)))
+#     # Join the list with '.' separator 
+#     return '.'.join(ip)
+
+def state():
+    home_dir = os.path.expanduser('~') 
+    
+    if json_location('state.json'):
+        with open(os.path.join(home_dir, 'state.json'),'r') as file:
+            state = {}
+            state = json.load(file)
+            # print(state)
+    else:
+        state = {}
+        json_object = json.dumps(state, indent=4)
+        with open(os.path.join(home_dir, 'state.json'), 'w') as file:
+            file.write(json_object)
+            # print(state)
+ 
+def add_user(User, PK, PSK):
+    home_dir = os.path.expanduser('~')
+    with open(os.path.join(home_dir, 'state.json'),'r') as file:
+        # First we load existing data into a dict.
+        file_data = json.load(file)
+        
+    if len(file_data) == 0:
+        IP = "10.0.0.0"
+    else:
+        latest_IP_entry = file_data[list(file_data)[-1]]["IP"]
+        IP = str(ipaddress.ip_address(latest_IP_entry) + 1)
+        
+    # New User to be added    
+    Entry = {
+        "IP" : IP,
+        "PK" : PK,
+        "PSK": PSK,
+        }
+    file_data[f"{User}"] = Entry
+    
+    # Output new json file
+    json_object = json.dumps(file_data, indent=4)
+    with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
+        outfile.write(json_object)
+    
+    
+state()
+add_user("Test15", "10", "10")
+
 
 def getPrivateKey():
     # os.system("sudo -i")
-    home_dir = os.path.expanduser('~')
     file_object = open(os.path.join(home_dir, 'wg0.txt'), 'r')
     data = file_object.read().splitlines()
     private_key = data[2].split(' ')[-1].strip()
