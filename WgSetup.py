@@ -18,18 +18,18 @@ def Generate():
     print(f"Here is your private key: {userprivate.decode()}")
     print(f"Here is your public key: {userpublic.decode()}")
     
-    # # Write the private and public keys as strings to the home directory
-    # with open(os.path.join(home_dir, 'User_Private.txt'), 'wb') as fp:
-    #     fp.write(userprivate)
+    # Write the private and public keys as strings to the home directory
+    with open(os.path.join(home_dir, 'User_Private.txt'), 'wb') as fp:
+        fp.write(userprivate)
         
-    # with open(os.path.join(home_dir, 'User_Public.txt'), 'wb') as fp:
-    #     fp.write(userpublic)
+    with open(os.path.join(home_dir, 'User_Public.txt'), 'wb') as fp:
+        fp.write(userpublic)
 
     
 def Decrypter(robot, user_private, encrpyted):
     # Format: 'Robot' : ["Public Key"],
     robot_table = {
-        'Ram': 'W6zJkCbIPNJLhtlUdDemzwNbNLk7MRvsxMICLB1Z5Ck=',
+        'Ram': 'PyCIhvAiBFNxP8Ka5MOhvqq9Q3LkBAddWBjlbb5HDUA=',
         'Tron': 'Public Key2',
         'Flynn': 'Public Key3'
         }
@@ -39,7 +39,7 @@ def Decrypter(robot, user_private, encrpyted):
     robot = base64.b64decode(robot_table[robot])
     user_private = base64.b64decode(user_private)
     
-    # Convert into Key objectss
+    # Convert into Key objects
     robot = nacl.public.PublicKey(robot)
     user_private = nacl.public.PrivateKey(user_private)
     
@@ -66,8 +66,8 @@ elif len(sys.argv) == 4:
     print("Decrypting...")
     sys.argv.pop(0)
     robot = sys.argv.pop(0)
-    encrypted = sys.argv.pop(0)
     user_private = sys.argv.pop(0)
+    encrypted = sys.argv.pop(0)
     
     # # Open text files and store as a variable
     # with open('Encrypted_Config.txt', 'r') as fp:
@@ -85,5 +85,5 @@ else:
     print("Invalid argument(s)")
     print("Usage:")
     print("Generate Keys: WgSetup.py", file=sys.stderr)
-    print("Decrypt: WgSetup.py <Robot>, <Ecrypted> <User_Private>", file=sys.stderr)
+    print("Decrypt: WgSetup.py <Robot>, <User_Private>, <Ecrypted>", file=sys.stderr)
     sys.exit(1)

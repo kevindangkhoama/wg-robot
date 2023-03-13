@@ -28,7 +28,6 @@ def state():
     
     if json_location('state.json'):
         with open(os.path.join(home_dir, 'state.json'),'r') as file:
-            state = {}
             state = json.load(file)
             # print(state)
     else:
@@ -36,64 +35,87 @@ def state():
         json_object = json.dumps(state, indent=4)
         with open(os.path.join(home_dir, 'state.json'), 'w') as file:
             file.write(json_object)
-            # print(state)
- 
-def add_user(User, PK, PSK):
-    home_dir = os.path.expanduser('~')
-    with open(os.path.join(home_dir, 'state.json'),'r') as file:
-        # First we load existing data into a dict.
-        file_data = json.load(file)
-        
-    if len(file_data) == 0:
-        IP = "10.0.0.0"
-    else:
-        latest_IP_entry = file_data[list(file_data)[-1]]["IP"]
-        IP = str(ipaddress.ip_address(latest_IP_entry) + 1)
-        
-    # New User to be added    
-    Entry = {
-        "IP" : IP,
-        "PK" : PK,
-        "PSK": PSK,
-        }
-    file_data[f"{User}"] = Entry
+            # print(state)  
     
-    # Output new json file
-    json_object = json.dumps(file_data, indent=4)
-    with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
-        outfile.write(json_object)
-    
-    
-state()
-add_user("Test15", "10", "10")
-
-
 def getPrivateKey():
     # os.system("sudo -i")
+    home_dir = os.path.expanduser('~') 
     file_object = open(os.path.join(home_dir, 'wg0.txt'), 'r')
     data = file_object.read().splitlines()
     private_key = data[2].split(' ')[-1].strip()
     return(private_key)
 
-def Encrypter(user_public):
+def Encrypter(username, device, user_public):
     # Decode and assign wg_private as a Private Key object
     wg_private = getPrivateKey()
     wg_private = base64.b64decode(wg_private)
     wg_private = nacl.public.PrivateKey(wg_private)
     
     # Decode User and assign user_public as a Public Key object
+    public_key = user_public
     user_public = base64.b64decode(user_public)
     user_public = nacl.public.PublicKey(user_public)
 
     # Create a WireGuard Box
     wg_box = Box(wg_private, user_public)
-    
-    # Generate IP and preshared key
-    user_ip = "10.77.0.7" # Set as this IP for now
     user_psk = wg_box.shared_key()
+    user_psk = base64.b64encode(user_psk)
     
+    # Robot side:
+    # Check if a state.json is present, if not, create one
+    state()
+    
+    # Add user info to state.json
+    home_dir = os.path.expanduser('~')
+    with open(os.path.join(home_dir, 'state.json'),'r') as file:
+        # First we load existing data into a dict.
+        file_data = json.load(file)
+        
+    if len(file_data) == 0:
+        user_ip = "10.77.0.2"
+    else:
+        latest_IP_entry = file_data[list(file_data)[-1]]["IP"]
+        user_ip = str(ipaddress.ip_address(latest_IP_entry) + 1)
+    
+    # New User to be added    
+    Entry = {
+        "Public_Key" : str(public_key),
+        "PSK" : str(user_psk.decode()),
+        "IP" : user_ip,
+        }
+    
+    file_data[f"{username}"] = Entry
+    
+    # Output newly updated json file
+    json_object = json.dumps(file_data, indent=4)
+    with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
+        outfile.write(json_object)
+    
+    with open('wg0.txt', 'r') as f:
+    # read the existing contents of the file into a string variable
+        existing_entries = f.read()
+    
+    # Update wg0 with the new json file        
+    with open('wg0.txt', 'a') as f:
+    # loop through all entries in the dictionary
+        for user, entry in file_data.items():
+        # format the entry as desired
+            formatted_entry = f"\n\n[Peer]\n" \
+                              f"# {username} | {device}\n" \
+                              f"PublicKey = {entry['Public_Key']}\n" \
+                              f"PresharedKey = {entry['PSK']}\n" \
+                              f"AllowedIPs = {entry['IP']}\n" \
+                              f"PersistentKeepalive = 25"
+            # write the formatted entry to the text file
+            if formatted_entry not in existing_entries:
+            # write the formatted entry to the file
+                f.write(formatted_entry)
+            # update the existing entries variable to include the new entry
+                existing_entries += formatted_entry
+      
+    # User side:
     # Combine both values into a string
-    message = f"USER_IP={user_ip} | PSK={user_psk}"
+    message = f"USER_IP={user_ip} | PSK={user_psk.decode()}"
     
     # Encrypt IP and PSK and return
     encrypted = base64.b64encode(wg_box.encrypt(message.encode()))
@@ -106,10 +128,12 @@ def Encrypter(user_public):
 
 
 # # Command Line Arguments
-if len(sys.argv) == 2:
+if len(sys.argv) == 4:
     print("Encrypting...")
     
     sys.argv.pop(0)
+    username = sys.argv.pop(0)
+    device = sys.argv.pop(0)
     user_public = sys.argv.pop(0)
     
     # Open text file and store as a variable
@@ -117,9 +141,9 @@ if len(sys.argv) == 2:
     #     user_public = fp.read()
         
     # Run Encrypter    
-    Encrypter(user_public)
+    Encrypter(username, device, user_public)
     print("Done")
     
 else:
     # Invalid Command
-    print("Usage: Robot.py <User_Public.txt>", file=sys.stderr) 
+    print("Usage: Robot.py <Username>, <Device>, <User_Public.txt>", file=sys.stderr) 
