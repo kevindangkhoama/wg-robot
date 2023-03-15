@@ -7,7 +7,7 @@ from nacl.public import PrivateKey,PublicKey, Box
 
 home_dir = os.path.expanduser('~')
 
-def Generate():
+def Generate(device):
     # Create Key Pairs
     userprivate = PrivateKey.generate()
     userpublic = userprivate.public_key
@@ -19,10 +19,10 @@ def Generate():
     print(f"Here is your public key: {userpublic.decode()}")
     
     # Write the private and public keys as strings to the home directory
-    with open(os.path.join(home_dir, 'User_Private.txt'), 'wb') as fp:
+    with open(os.path.join(home_dir, f'{device}_Private.txt'), 'wb') as fp:
         fp.write(userprivate)
         
-    with open(os.path.join(home_dir, 'User_Public.txt'), 'wb') as fp:
+    with open(os.path.join(home_dir, f'{device}_Public.txt'), 'wb') as fp:
         fp.write(userpublic)
 
     
@@ -50,16 +50,18 @@ def Decrypter(robot, user_private, encrpyted):
     decoded = user_box.decrypt(encrypted)
     
     print(f"Here is your decoded config: {decoded.decode()}")
-    # # Export to text file
-    # with open(os.path.join(home_dir, 'Decrypted_Config.txt'), 'w') as fp:
-    #     fp.write(decoded)
+    # Export to text file
+    with open(os.path.join(home_dir, f'{device}_Decrypted_Config.txt'), 'w') as fp:
+        fp.write(decoded)
     
 
 # Command Line Arguments    
-if len(sys.argv) == 1:
+if len(sys.argv) == 2:
     print("Generating Keys...")
     # Create Private and Public Keys
-    Generate()
+    sys.argv.pop(0)
+    device = sys.argv.pop(0)
+    Generate(device)
     print("Done")
     
 elif len(sys.argv) == 4:
@@ -68,12 +70,13 @@ elif len(sys.argv) == 4:
     robot = sys.argv.pop(0)
     user_private = sys.argv.pop(0)
     encrypted = sys.argv.pop(0)
-    
-    # # Open text files and store as a variable
-    # with open('Encrypted_Config.txt', 'r') as fp:
-    #     encrypted = fp.read()
-    # with open('User_Private.txt', 'r') as fp:
-    #     user_private = fp.read()
+    # Store txt file name as a variable
+    device = os.path.splitext(user_private)[0].replace('_Public', '')
+    # Open text files and store as a variable
+    with open(f'{device}_Encrypted_Config.txt', 'r') as fp:
+        encrypted = fp.read()
+    with open(f'{device}_Private.txt', 'r') as fp:
+        user_private = fp.read()
     
     # Run decrypter    
     Decrypter(robot, user_private, encrypted)
@@ -84,6 +87,6 @@ else:
     # Invalid Command
     print("Invalid argument(s)")
     print("Usage:")
-    print("Generate Keys: WgSetup.py", file=sys.stderr)
+    print("Generate Keys: WgSetup.py, <Device>", file=sys.stderr)
     print("Decrypt: WgSetup.py <Robot>, <User_Private>, <Ecrypted>", file=sys.stderr)
     sys.exit(1)

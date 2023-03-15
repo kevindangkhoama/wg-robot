@@ -9,28 +9,26 @@ import random
 from random import randint
 from nacl.public import PrivateKey, PublicKey, Box
 
+# TO DO:
+# -WORK ON DEALING WITH DUPLICATE ENTRIES
+#    -Specifically how do can you compare duplicates if the IP address is always incremented from the greatest
+#    -How do you compare without the IP address?
 
 def json_location(file_name):
     home_dir = os.path.expanduser('~')
     full_path = os.path.join(home_dir, file_name)
     return os.path.exists(full_path)
 
-# def generate_private_ip():
-#     ip = ["10"]
-#     # Generate random numbers from start range to end range 
-#     for i in range(4):
-#         ip.append(str(random.randint(0, 255)))
-#     # Join the list with '.' separator 
-#     return '.'.join(ip)
-
 def state():
     home_dir = os.path.expanduser('~') 
     
+    # If state.json is present, load
     if json_location('state.json'):
         with open(os.path.join(home_dir, 'state.json'),'r') as file:
             state = json.load(file)
             # print(state)
     else:
+        # Create state.json
         state = {}
         json_object = json.dumps(state, indent=4)
         with open(os.path.join(home_dir, 'state.json'), 'w') as file:
@@ -38,14 +36,13 @@ def state():
             # print(state)  
     
 def getPrivateKey():
-    # os.system("sudo -i")
     home_dir = os.path.expanduser('~') 
     file_object = open(os.path.join(home_dir, 'wg0.txt'), 'r')
     data = file_object.read().splitlines()
     private_key = data[2].split(' ')[-1].strip()
     return(private_key)
 
-def Encrypter(username, device, user_public):
+def Encrypter(username, user_public):
     # Decode and assign wg_private as a Private Key object
     wg_private = getPrivateKey()
     wg_private = base64.b64decode(wg_private)
@@ -62,29 +59,40 @@ def Encrypter(username, device, user_public):
     user_psk = base64.b64encode(user_psk)
     
     # Robot side:
-    # Check if a state.json is present, if not, create one
     state()
     
     # Add user info to state.json
     home_dir = os.path.expanduser('~')
     with open(os.path.join(home_dir, 'state.json'),'r') as file:
-        # First we load existing data into a dict.
         file_data = json.load(file)
-        
+    
+    # Assigning IPs if first entry default to 10.77.0.2 else increment greatest IP by 1
     if len(file_data) == 0:
         user_ip = "10.77.0.2"
     else:
-        latest_IP_entry = file_data[list(file_data)[-1]]["IP"]
-        user_ip = str(ipaddress.ip_address(latest_IP_entry) + 1)
+        greatest_IP_int = ipaddress.IPv4Address("10.77.0.2")
+        for device_entry in file_data.values():
+            for device_info in device_entry.values():
+                current_IP = ipaddress.IPv4Address(device_info["IP"])
+                if current_IP > greatest_IP_int:
+                    greatest_IP_int = current_IP
+        greatest_IP_int +=1
+        user_ip = str(ipaddress.IPv4Address(greatest_IP_int))
     
     # New User to be added    
     Entry = {
-        "Public_Key" : str(public_key),
-        "PSK" : str(user_psk.decode()),
-        "IP" : user_ip,
+        f"{device}": {
+            "Public_Key" : str(public_key),
+            "PreShared_Key" : str(user_psk.decode()),
+            "IP" : user_ip,
         }
+    }
     
-    file_data[f"{username}"] = Entry
+    # If user does not have a preexisting username, create one. If so, add new device to the list of devices asssociated with the username
+    if f"{username}" not in file_data:
+        file_data[f"{username}"] = Entry
+    else:
+        file_data[f"{username}"] |= Entry
     
     # Output newly updated json file
     json_object = json.dumps(file_data, indent=4)
@@ -97,21 +105,13 @@ def Encrypter(username, device, user_public):
     
     # Update wg0 with the new json file        
     with open('wg0.txt', 'a') as f:
-    # loop through all entries in the dictionary
-        for user, entry in file_data.items():
-        # format the entry as desired
-            formatted_entry = f"\n\n[Peer]\n" \
-                              f"# {username} | {device}\n" \
-                              f"PublicKey = {entry['Public_Key']}\n" \
-                              f"PresharedKey = {entry['PSK']}\n" \
-                              f"AllowedIPs = {entry['IP']}\n" \
-                              f"PersistentKeepalive = 25"
-            # write the formatted entry to the text file
-            if formatted_entry not in existing_entries:
-            # write the formatted entry to the file
-                f.write(formatted_entry)
-            # update the existing entries variable to include the new entry
-                existing_entries += formatted_entry
+        formatted_entry = f"\n\n[Peer]\n" \
+                          f"# {username} | {device} \n" \
+                          f"PublicKey = {Entry[device]['Public_Key']}\n" \
+                          f"PresharedKey = {Entry[device]['PreShared_Key']}\n" \
+                          f"AllowedIPs = {Entry[device]['IP']}\n" \
+                          f"PersistentKeepalive = 25"
+        f.write(formatted_entry)
       
     # User side:
     # Combine both values into a string
@@ -121,27 +121,27 @@ def Encrypter(username, device, user_public):
     encrypted = base64.b64encode(wg_box.encrypt(message.encode()))
     print(f"Here is your encrypted config: {encrypted.decode()}")
     
-    # # Export to text file
-    # home_dir = os.path.expanduser('~')
-    # with open(os.path.join(home_dir, 'Encrypted_Config.txt'), 'wb') as fp:
-    #     # fp.write(encrypted)
+    # Export to text file
+    home_dir = os.path.expanduser('~')
+    with open(os.path.join(home_dir, f'{device}_Encrypted_Config.txt'), 'wb') as fp:
+         fp.write(encrypted)
 
 
 # # Command Line Arguments
-if len(sys.argv) == 4:
+if len(sys.argv) == 3:
     print("Encrypting...")
     
     sys.argv.pop(0)
     username = sys.argv.pop(0)
-    device = sys.argv.pop(0)
     user_public = sys.argv.pop(0)
-    
+    # Clean up public key txt file to create a variable with the device name
+    device = os.path.splitext(user_public)[0].replace('_Public', '')
     # Open text file and store as a variable
-    # with open('User_Public.txt', 'r') as fp:
-    #     user_public = fp.read()
+    with open(f'{user_public}', 'r') as fp:
+        user_public = fp.read()
         
     # Run Encrypter    
-    Encrypter(username, device, user_public)
+    Encrypter(username, user_public)
     print("Done")
     
 else:
