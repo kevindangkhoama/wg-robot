@@ -3,16 +3,10 @@ import ipaddress
 import sys
 import os
 import json
-import nacl.utils
 import base64
-import random
-from random import randint
+import subprocess
+import nacl.utils
 from nacl.public import PrivateKey, PublicKey, Box
-
-# TO DO:
-# -WORK ON DEALING WITH DUPLICATE ENTRIES
-#    -Specifically how do can you compare duplicates if the IP address is always incremented from the greatest
-#    -How do you compare without the IP address?
 
 def json_location(file_name):
     home_dir = os.path.expanduser('~')
@@ -42,31 +36,9 @@ def getPrivateKey():
     private_key = data[2].split(' ')[-1].strip()
     return(private_key)
 
-def Encrypter(username, user_public):
-    # Decode and assign wg_private as a Private Key object
-    wg_private = getPrivateKey()
-    wg_private = base64.b64decode(wg_private)
-    wg_private = nacl.public.PrivateKey(wg_private)
-    
-    # Decode User and assign user_public as a Public Key object
-    public_key = user_public
-    user_public = base64.b64decode(user_public)
-    user_public = nacl.public.PublicKey(user_public)
-
-    # Create a WireGuard Box
-    wg_box = Box(wg_private, user_public)
-    user_psk = wg_box.shared_key()
-    user_psk = base64.b64encode(user_psk)
-    
-    # Robot side:
-    state()
-    
-    # Add user info to state.json
-    home_dir = os.path.expanduser('~')
-    with open(os.path.join(home_dir, 'state.json'),'r') as file:
-        file_data = json.load(file)
-    
+def assignIP(file_data):    
     # Assigning IPs if first entry default to 10.77.0.2 else increment greatest IP by 1
+    # TO DO: Find a way to do this faster
     if len(file_data) == 0:
         user_ip = "10.77.0.2"
     else:
@@ -78,6 +50,32 @@ def Encrypter(username, user_public):
                     greatest_IP_int = current_IP
         greatest_IP_int +=1
         user_ip = str(ipaddress.IPv4Address(greatest_IP_int))
+    return user_ip
+
+def Encrypter(username, user_public):
+    # Decode and assign wg_private as a Private Key object
+    wg_private = getPrivateKey()
+    wg_private = base64.b64decode(wg_private)
+    wg_private = nacl.public.PrivateKey(wg_private)
+    # Decode User and assign user_public as a Public Key object
+    public_key = user_public
+    user_public = base64.b64decode(user_public)
+    user_public = nacl.public.PublicKey(user_public)
+    # Create a WireGuard Box
+    wg_box = Box(wg_private, user_public)
+    user_psk = wg_box.shared_key()
+    user_psk = base64.b64encode(user_psk)
+    
+    # Robot side:
+    state()
+
+    # Load state.json
+    home_dir = os.path.expanduser('~')
+    with open(os.path.join(home_dir, 'state.json'),'r') as file:
+        file_data = json.load(file)
+
+    # Assign IP:
+    user_ip = assignIP(file_data)
     
     # New User to be added    
     Entry = {
@@ -99,20 +97,16 @@ def Encrypter(username, user_public):
     with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
         outfile.write(json_object)
     
-    with open('wg0.txt', 'r') as f:
-    # read the existing contents of the file into a string variable
-        existing_entries = f.read()
-    
-    # Update wg0 with the new json file        
-    with open('wg0.txt', 'a') as f:
-        formatted_entry = f"\n\n[Peer]\n" \
+    formatted_entry = f"\n\n[Peer]\n" \
                           f"# {username} | {device} \n" \
                           f"PublicKey = {Entry[device]['Public_Key']}\n" \
                           f"PresharedKey = {Entry[device]['PreShared_Key']}\n" \
                           f"AllowedIPs = {Entry[device]['IP']}\n" \
                           f"PersistentKeepalive = 25"
-        f.write(formatted_entry)
-      
+    
+    with subprocess.Popen(["sudo", "tee", "-a", "wg0.txt"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL) as p:
+        p.communicate(formatted_entry.encode())
+
     # User side:
     # Combine both values into a string
     message = f"USER_IP={user_ip} | PSK={user_psk.decode()}"
@@ -131,19 +125,20 @@ def Encrypter(username, user_public):
 if len(sys.argv) == 3:
     print("Encrypting...")
     
+    # Assign variables
     sys.argv.pop(0)
     username = sys.argv.pop(0)
     user_public = sys.argv.pop(0)
-    # Clean up public key txt file to create a variable with the device name
+    # Remove "_public.txt" from arg2 to get device name variable
     device = os.path.splitext(user_public)[0].replace('_Public', '')
-    # Open text file and store as a variable
+
+    # Open device public key and store as a variable
     with open(f'{user_public}', 'r') as fp:
         user_public = fp.read()
         
-    # Run Encrypter    
+    # Run Encrypter
     Encrypter(username, user_public)
     print("Done")
-    
 else:
     # Invalid Command
-    print("Usage: Robot.py <Username>, <Device>, <User_Public.txt>", file=sys.stderr) 
+    print("Usage: Robot.py <Username>, <Device_Public.txt>", file=sys.stderr) 

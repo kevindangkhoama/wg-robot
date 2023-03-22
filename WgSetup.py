@@ -66,12 +66,14 @@ if len(sys.argv) == 2:
     
 elif len(sys.argv) == 4:
     print("Decrypting...")
+    # Assign variables
     sys.argv.pop(0)
     robot = sys.argv.pop(0)
     user_private = sys.argv.pop(0)
     encrypted = sys.argv.pop(0)
-    # Store txt file name as a variable
+    # Remove "_public.txt" from arg2 to get device name variable
     device = os.path.splitext(user_private)[0].replace('_Public', '')
+    
     # Open text files and store as a variable
     with open(f'{device}_Encrypted_Config.txt', 'r') as fp:
         encrypted = fp.read()
