@@ -23,7 +23,10 @@ def state():
             # print(state)
     else:
         # Create state.json
-        state = {}
+        state = {
+            "Latest_IP": "",
+            "Users": {}
+            }
         json_object = json.dumps(state, indent=4)
         with open(os.path.join(home_dir, 'state.json'), 'w') as file:
             file.write(json_object)
@@ -37,19 +40,15 @@ def getPrivateKey():
     return(private_key)
 
 def assignIP(file_data):    
-    # Assigning IPs if first entry default to 10.77.0.2 else increment greatest IP by 1
-    # TO DO: Find a way to do this faster
-    if len(file_data) == 0:
+    # Assigning IPs if first entry default to 10.77.0.2 else increment latest IP by 1
+    if file_data["Latest_IP"] == "":
+        file_data["Latest_IP"] = "10.77.0.2"
         user_ip = "10.77.0.2"
     else:
-        greatest_IP_int = ipaddress.IPv4Address("10.77.0.2")
-        for device_entry in file_data.values():
-            for device_info in device_entry.values():
-                current_IP = ipaddress.IPv4Address(device_info["IP"])
-                if current_IP > greatest_IP_int:
-                    greatest_IP_int = current_IP
-        greatest_IP_int +=1
-        user_ip = str(ipaddress.IPv4Address(greatest_IP_int))
+        latest_IP_int = ipaddress.IPv4Address(file_data["Latest_IP"])
+        latest_IP_int +=1
+        file_data["Latest_IP"] = str(ipaddress.IPv4Address(latest_IP_int))
+        user_ip = str(ipaddress.IPv4Address(latest_IP_int))
     return user_ip
 
 def Encrypter(username, user_public):
@@ -87,10 +86,14 @@ def Encrypter(username, user_public):
     }
     
     # If user does not have a preexisting username, create one. If so, add new device to the list of devices asssociated with the username
-    if f"{username}" not in file_data:
-        file_data[f"{username}"] = Entry
+    if f"{username}" not in file_data["Users"]:
+        file_data["Users"][f"{username}"] = Entry
     else:
-        file_data[f"{username}"] |= Entry
+        if f"{device}" in file_data["Users"][f"{username}"]:
+            print("Error: Device Already Added")
+            sys.exit()
+        else:
+            file_data["Users"][f"{username}"] |= Entry
     
     # Output newly updated json file
     json_object = json.dumps(file_data, indent=4)
@@ -123,7 +126,6 @@ def Encrypter(username, user_public):
 
 # # Command Line Arguments
 if len(sys.argv) == 3:
-    print("Encrypting...")
     
     # Assign variables
     sys.argv.pop(0)
@@ -138,6 +140,7 @@ if len(sys.argv) == 3:
         
     # Run Encrypter
     Encrypter(username, user_public)
+    print("Encrypting...")
     print("Done")
 else:
     # Invalid Command
