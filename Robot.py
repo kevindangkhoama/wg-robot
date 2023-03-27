@@ -33,11 +33,11 @@ def state():
             # print(state)  
     
 def getPrivateKey():
-    home_dir = os.path.expanduser('~') 
-    file_object = open(os.path.join(home_dir, 'wg0.txt'), 'r')
-    data = file_object.read().splitlines()
+    with subprocess.Popen(["sudo", "cat", "wg0.txt"], stdout=subprocess.PIPE) as p:
+        output = p.stdout.read().decode()
+    data = output.splitlines()
     private_key = data[2].split(' ')[-1].strip()
-    return(private_key)
+    return private_key
 
 def assignIP(file_data):    
     # Assigning IPs if first entry default to 10.77.0.2 else increment latest IP by 1
@@ -100,7 +100,7 @@ def Encrypter(username, user_public):
     with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
         outfile.write(json_object)
     
-    formatted_entry = f"\n\n[Peer]\n" \
+    formatted_entry = f"\n[Peer]\n" \
                           f"# {username} | {device} \n" \
                           f"PublicKey = {Entry[device]['Public_Key']}\n" \
                           f"PresharedKey = {Entry[device]['PreShared_Key']}\n" \
