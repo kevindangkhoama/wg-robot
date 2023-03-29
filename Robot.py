@@ -51,7 +51,7 @@ def assignIP(file_data):
         user_ip = str(ipaddress.IPv4Address(latest_IP_int))
     return user_ip
 
-def Encrypter(username, user_public):
+def Encrypter(username, device, user_public):
     # Decode and assign wg_private as a Private Key object
     wg_private = getPrivateKey()
     wg_private = base64.b64decode(wg_private)
@@ -100,7 +100,7 @@ def Encrypter(username, user_public):
     with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
         outfile.write(json_object)
     
-    formatted_entry = f"\n[Peer]\n" \
+    formatted_entry = f"\n\n[Peer]\n" \
                           f"# {username} | {device} \n" \
                           f"PublicKey = {Entry[device]['Public_Key']}\n" \
                           f"PresharedKey = {Entry[device]['PreShared_Key']}\n" \
@@ -118,30 +118,32 @@ def Encrypter(username, user_public):
     encrypted = base64.b64encode(wg_box.encrypt(message.encode()))
     print(f"Here is your encrypted config: {encrypted.decode()}")
     
-    # Export to text file
-    home_dir = os.path.expanduser('~')
-    with open(os.path.join(home_dir, f'{device}_Encrypted_Config.txt'), 'wb') as fp:
-         fp.write(encrypted)
+    # # Export to text file
+    # home_dir = os.path.expanduser('~')
+    # with open(os.path.join(home_dir, f'{device}_Encrypted_Config.txt'), 'wb') as fp:
+    #      fp.write(encrypted)
 
 
 # # Command Line Arguments
-if len(sys.argv) == 3:
+if len(sys.argv) == 4:
     
     # Assign variables
     sys.argv.pop(0)
     username = sys.argv.pop(0)
+    device = sys.argv.pop(0)
     user_public = sys.argv.pop(0)
-    # Remove "_public.txt" from arg2 to get device name variable
-    device = os.path.splitext(user_public)[0].replace('_Public', '')
 
-    # Open device public key and store as a variable
-    with open(f'{user_public}', 'r') as fp:
-        user_public = fp.read()
+    # # Remove "_public.txt" from arg2 to get device name variable
+    # device = os.path.splitext(user_public)[0].replace('_Public', '')
+
+    # # Open device public key and store as a variable
+    # with open(f'{user_public}', 'r') as fp:
+    #     user_public = fp.read()
         
     # Run Encrypter
-    Encrypter(username, user_public)
+    Encrypter(username, device, user_public)
     print("Encrypting...")
     print("Done")
 else:
     # Invalid Command
-    print("Usage: Robot.py <Username>, <Device_Public.txt>", file=sys.stderr) 
+    print("Usage: Robot.py <Username>, <Device>, <Device_Public", file=sys.stderr) 
