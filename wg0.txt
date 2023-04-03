@@ -1,0 +1,6 @@
+[Interface]
+Address = 10.77.0.1/24
+PrivateKey = IRLX3UdBXVjHvRJxWYIq8CVAfzBzEAgHKAO2oFCmd84=
+ListenPort = 51820
+PostUp = /etc/wireguard/start-nat.sh
+PostDown = /etc/wireguard/stop-nat.sh

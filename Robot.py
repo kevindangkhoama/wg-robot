@@ -51,19 +51,21 @@ def assignIP(file_data):
         user_ip = str(ipaddress.IPv4Address(latest_IP_int))
     return user_ip
 
-def Encrypter(username, user_public):
+def Encrypter(username, device, user_public):
     # Decode and assign wg_private as a Private Key object
     wg_private = getPrivateKey()
     wg_private = base64.b64decode(wg_private)
     wg_private = nacl.public.PrivateKey(wg_private)
     # Decode User and assign user_public as a Public Key object
-    public_key = user_public
     user_public = base64.b64decode(user_public)
     user_public = nacl.public.PublicKey(user_public)
     # Create a WireGuard Box
     wg_box = Box(wg_private, user_public)
     user_psk = wg_box.shared_key()
     user_psk = base64.b64encode(user_psk)
+    
+    # Encode the public key in base64
+    user_public = base64.b64encode(user_public.encode())
     
     # Robot side:
     state()
@@ -79,7 +81,7 @@ def Encrypter(username, user_public):
     # New User to be added    
     Entry = {
         f"{device}": {
-            "Public_Key" : str(public_key),
+            "Public_Key" : user_public.decode(),
             "PreShared_Key" : str(user_psk.decode()),
             "IP" : user_ip,
         }
@@ -100,7 +102,7 @@ def Encrypter(username, user_public):
     with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
         outfile.write(json_object)
     
-    formatted_entry = f"\n[Peer]\n" \
+    formatted_entry = f"\n\n[Peer]\n" \
                           f"# {username} | {device} \n" \
                           f"PublicKey = {Entry[device]['Public_Key']}\n" \
                           f"PresharedKey = {Entry[device]['PreShared_Key']}\n" \
@@ -116,32 +118,21 @@ def Encrypter(username, user_public):
     
     # Encrypt IP and PSK and return
     encrypted = base64.b64encode(wg_box.encrypt(message.encode()))
-    print(f"Here is your encrypted config: {encrypted.decode()}")
-    
-    # Export to text file
-    home_dir = os.path.expanduser('~')
-    with open(os.path.join(home_dir, f'{device}_Encrypted_Config.txt'), 'wb') as fp:
-         fp.write(encrypted)
-
+    print(f"Here is your Encrypted Config: {encrypted.decode()}")
 
 # # Command Line Arguments
-if len(sys.argv) == 3:
+if len(sys.argv) == 4:
     
     # Assign variables
     sys.argv.pop(0)
     username = sys.argv.pop(0)
+    device = sys.argv.pop(0)
     user_public = sys.argv.pop(0)
-    # Remove "_public.txt" from arg2 to get device name variable
-    device = os.path.splitext(user_public)[0].replace('_Public', '')
 
-    # Open device public key and store as a variable
-    with open(f'{user_public}', 'r') as fp:
-        user_public = fp.read()
-        
     # Run Encrypter
-    Encrypter(username, user_public)
+    Encrypter(username, device, user_public)
     print("Encrypting...")
     print("Done")
 else:
     # Invalid Command
-    print("Usage: Robot.py <Username>, <Device_Public.txt>", file=sys.stderr) 
+    print("Usage: Robot.py <User>, <Device>, <Device_Public", file=sys.stderr) 
