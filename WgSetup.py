@@ -3,6 +3,7 @@ import sys
 import os
 import nacl.utils
 import base64
+import subprocess
 from nacl.public import PrivateKey,PublicKey, Box
 
 home_dir = os.path.expanduser('~')
@@ -28,7 +29,6 @@ def wgdata(device, robot):
         os.mkdir(device_dir)
         os.chmod(device_dir, 0o700)
         
-    
     return device_dir    
        
 
@@ -52,7 +52,7 @@ def Generate(device):
         
     print(f"Keys stored at {device_dir}")
     
-def Decrypter(robot, user_private, encrpyted):
+def Decrypter(robot, device, encrpyted):
     # Format: 'Robot' : ["Public Key"],
     robot_table = {
         'Ram': 'PyCIhvAiBFNxP8Ka5MOhvqq9Q3LkBAddWBjlbb5HDUA=',
@@ -60,6 +60,12 @@ def Decrypter(robot, user_private, encrpyted):
         'Flynn': 'Public Key3'
         }
     
+    # Find private key
+    private_dir = f'{device_dir}/{device}_Private.txt'
+    # run the command with sudo privileges and capture the output
+    proc = subprocess.Popen(['sudo', 'cat', private_dir], stdout=subprocess.PIPE)
+    user_private = proc.communicate()[0]
+        
     # Decode all base64 variables
     encrypted = base64.b64decode(encrpyted)
     robot = base64.b64decode(robot_table[robot])
@@ -75,11 +81,12 @@ def Decrypter(robot, user_private, encrpyted):
     # Decrypt encrypted config
     decoded = user_box.decrypt(encrypted)
     
-    print(f"Here is your decoded config: {decoded.decode()}")
+    print(f"Here is your Decoded Config: {decoded.decode()}")
     # Export to text file
     with open(os.path.join(device_dir, f'{device}_Decrypted_Config.txt'), 'w') as fp:
-        fp.write(decoded)
+        fp.write(decoded.decode())
     
+    print(f"Decoded Config stored at {device_dir}")
 
 # Command Line Arguments    
 if len(sys.argv) == 3:
@@ -99,20 +106,12 @@ elif len(sys.argv) == 4:
     # Assign variables
     sys.argv.pop(0)
     robot = sys.argv.pop(0)
-    user_private = sys.argv.pop(0)
+    device = sys.argv.pop(0)
     encrypted = sys.argv.pop(0)
-    # Remove "_public.txt" from arg2 to get device name variable
-    device = os.path.splitext(user_private)[0].replace('_Public', '')
-    # assign where to store device info
     device_dir = wgdata(device, robot)
-    # Open text files and store as a variable
-    # with open(f'{device}_Encrypted_Config.txt', 'r') as fp:
-    #     encrypted = fp.read()
-    with open(f'{device_dir}/{user_private}', 'r') as fp:
-        user_private = fp.read()
     
     # Run decrypter    
-    Decrypter(robot, user_private, encrypted)
+    Decrypter(robot, device, encrypted)
     
     print("Done")
     
@@ -121,5 +120,5 @@ else:
     print("Invalid argument(s)")
     print("Usage:")
     print("Generate Keys: WgSetup.py, <Robot>, <Device>", file=sys.stderr)
-    print("Decrypt: WgSetup.py <Robot>, <User_Private>, <Ecrypted>", file=sys.stderr)
+    print("Decrypt: WgSetup.py <Robot>, <Device>, <Ecrypted>", file=sys.stderr)
     sys.exit(1)
