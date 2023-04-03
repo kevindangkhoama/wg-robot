@@ -8,9 +8,26 @@ from nacl.public import PrivateKey,PublicKey, Box
 
 home_dir = os.path.expanduser('~')
 
-def wgdata(device, robot):
+# Format: 'Robot' : ["Public Key"],
+robot_table = {
+        'ram': 'PyCIhvAiBFNxP8Ka5MOhvqq9Q3LkBAddWBjlbb5HDUA=',
+        'tron': 'Public Key2',
+        'flynn': 'Public Key3'
+        }
+
+def findrobot(robot):
+    robot_lower = robot.lower()
+    if robot_lower not in robot_table:
+        print(f"{robot} not found. \n")
+        print("Available Robots: ")
+        for r in robot_table:
+            print(f"{r}".capitalize())
+        sys.exit(1)
+            
+            
+def wgdata(device):    
     home_dir = os.path.expanduser('~')
-    wg_data_dir = os.path.join(home_dir, 'wireguard_data')
+    wg_data_dir = os.path.join(home_dir, '.wireguard_data')
     
     # Check if .wireguard_data exists
     if not os.path.exists(wg_data_dir):
@@ -18,13 +35,13 @@ def wgdata(device, robot):
         os.chmod(wg_data_dir, 0o700)
     
     # Create robot directory if it doesn't exist
-    robot_dir = os.path.join(wg_data_dir, robot)
+    robot_dir = os.path.join(wg_data_dir, robot.lower())
     if not os.path.exists(robot_dir):
         os.mkdir(robot_dir)
         os.chmod(robot_dir, 0o700)
     
     # Create device directory if it doesn't exist
-    device_dir = os.path.join(robot_dir, device)
+    device_dir = os.path.join(robot_dir, device.lower())
     if not os.path.exists(device_dir):
         os.mkdir(device_dir)
         os.chmod(device_dir, 0o700)
@@ -32,7 +49,9 @@ def wgdata(device, robot):
     return device_dir    
        
 
-def Generate(device):
+def Generate(robot, device):
+    # Check if robot exists
+    findrobot(robot)
     # Create Key Pairs
     userprivate = PrivateKey.generate()
     userpublic = userprivate.public_key
@@ -40,53 +59,49 @@ def Generate(device):
     userprivate = base64.b64encode(userprivate.encode())
     userpublic = base64.b64encode(userpublic.encode())
     
-    print(f"Here is your private key: {userprivate.decode()}")
-    print(f"Here is your public key: {userpublic.decode()}")
+    print(f"\nPrivate Key stored at {device_dir}")
+    print(f"\nHere is your Public Key: {userpublic.decode()}")
+    print(f"Public Key stored at {device_dir}\n")
     
     # Write the private and public keys as strings to the home directory
-    with open(os.path.join(device_dir, f'{device}_Private.txt'), 'wb') as fp:
+    with open(os.path.join(device_dir, f'{device}_private.txt'), 'wb') as fp:
         fp.write(userprivate)
         
-    with open(os.path.join(device_dir, f'{device}_Public.txt'), 'wb') as fp:
+    with open(os.path.join(device_dir, f'{device}_public.txt'), 'wb') as fp:
         fp.write(userpublic)
-        
-    print(f"Keys stored at {device_dir}")
     
 def Decrypter(robot, device, encrpyted):
-    # Format: 'Robot' : ["Public Key"],
-    robot_table = {
-        'Ram': 'PyCIhvAiBFNxP8Ka5MOhvqq9Q3LkBAddWBjlbb5HDUA=',
-        'Tron': 'Public Key2',
-        'Flynn': 'Public Key3'
-        }
-    
+    # Check if robot exists
+    findrobot(robot)  
+     
     # Find private key
-    private_dir = f'{device_dir}/{device}_Private.txt'
+    private_dir = f'{device_dir}/{device}_private.txt'
     # run the command with sudo privileges and capture the output
     proc = subprocess.Popen(['sudo', 'cat', private_dir], stdout=subprocess.PIPE)
     user_private = proc.communicate()[0]
         
     # Decode all base64 variables
     encrypted = base64.b64decode(encrpyted)
-    robot = base64.b64decode(robot_table[robot])
+    robot = base64.b64decode(robot_table[robot.lower()])
     user_private = base64.b64decode(user_private)
     
     # Convert into Key objects
     robot = nacl.public.PublicKey(robot)
     user_private = nacl.public.PrivateKey(user_private)
-    
+        
+        
     # Create User Box
     user_box = Box(user_private, robot)
     
     # Decrypt encrypted config
     decoded = user_box.decrypt(encrypted)
     
-    print(f"Here is your Decoded Config: {decoded.decode()}")
+    print(f"\nHere is your Decoded Config: {decoded.decode()}")
     # Export to text file
-    with open(os.path.join(device_dir, f'{device}_Decrypted_Config.txt'), 'w') as fp:
+    with open(os.path.join(device_dir, f'{device}_decrypted_config.txt'), 'w') as fp:
         fp.write(decoded.decode())
     
-    print(f"Decoded Config stored at {device_dir}")
+    print(f"Decoded Config stored at {device_dir}\n")
 
 # Command Line Arguments    
 if len(sys.argv) == 3:
@@ -95,10 +110,11 @@ if len(sys.argv) == 3:
     sys.argv.pop(0)
     robot = sys.argv.pop(0)
     device = sys.argv.pop(0)
+    device = device.lower()
     
     # assign where to store device info
-    device_dir = wgdata(device, robot)
-    Generate(device)
+    device_dir = wgdata(device)
+    Generate(robot, device)
     print("Done")
     
 elif len(sys.argv) == 4:
@@ -107,8 +123,9 @@ elif len(sys.argv) == 4:
     sys.argv.pop(0)
     robot = sys.argv.pop(0)
     device = sys.argv.pop(0)
+    device = device.lower()
     encrypted = sys.argv.pop(0)
-    device_dir = wgdata(device, robot)
+    device_dir = wgdata(device)
     
     # Run decrypter    
     Decrypter(robot, device, encrypted)
@@ -117,7 +134,7 @@ elif len(sys.argv) == 4:
     
 else:
     # Invalid Command
-    print("Invalid argument(s)")
+    print("Invalid argument(s)\n")
     print("Usage:")
     print("Generate Keys: WgSetup.py, <Robot>, <Device>", file=sys.stderr)
     print("Decrypt: WgSetup.py <Robot>, <Device>, <Ecrypted>", file=sys.stderr)
