@@ -81,9 +81,9 @@ def Encrypter(username, device, user_public):
     # New User to be added    
     Entry = {
         f"{device}": {
-            "Public_Key" : user_public.decode(),
-            "PreShared_Key" : str(user_psk.decode()),
-            "IP" : user_ip,
+            "PublicKey" : user_public.decode(),
+            "PreSharedKey" : str(user_psk.decode()),
+            "AllowedIPs" : user_ip,
         }
     }
     
@@ -104,21 +104,21 @@ def Encrypter(username, device, user_public):
     
     formatted_entry = f"\n\n[Peer]\n" \
                           f"# {username} | {device} \n" \
-                          f"PublicKey = {Entry[device]['Public_Key']}\n" \
-                          f"PresharedKey = {Entry[device]['PreShared_Key']}\n" \
-                          f"AllowedIPs = {Entry[device]['IP']}\n" \
-                          f"PersistentKeepalive = 25"
+                          f"PublicKey = {Entry[device]['PublicKey']}\n" \
+                          f"PreSharedKey = {Entry[device]['PreSharedKey']}\n" \
+                          f"AllowedIPs = {Entry[device]['AllowedIPs']}\n" \
+                          f"PersistentKeepAlive = 25"
     
     with subprocess.Popen(["sudo", "tee", "-a", "wg0.txt"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL) as p:
         p.communicate(formatted_entry.encode())
 
     # User side:
     # Combine both values into a string
-    message = f"USER_IP={user_ip} | PSK={user_psk.decode()}"
+    message = f"USER_IP = {user_ip} | PSK = {user_psk.decode()}"
     
     # Encrypt IP and PSK and return
     encrypted = base64.b64encode(wg_box.encrypt(message.encode()))
-    print(f"Here is your Encrypted Config: {encrypted.decode()}")
+    print(f"\nHere is your Encrypted Config: {encrypted.decode()}\n")
 
 # # Command Line Arguments
 if len(sys.argv) == 4:
@@ -126,13 +126,15 @@ if len(sys.argv) == 4:
     # Assign variables
     sys.argv.pop(0)
     username = sys.argv.pop(0)
+    username = username.lower()
     device = sys.argv.pop(0)
+    device = device.lower()
     user_public = sys.argv.pop(0)
 
     # Run Encrypter
-    Encrypter(username, device, user_public)
     print("Encrypting...")
+    Encrypter(username, device, user_public)
     print("Done")
 else:
     # Invalid Command
-    print("Usage: Robot.py <User>, <Device>, <Device_Public", file=sys.stderr) 
+    print("Usage: Robot.py <User>, <Device>, <Device_Public>", file=sys.stderr) 
