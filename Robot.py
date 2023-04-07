@@ -8,14 +8,21 @@ import subprocess
 import nacl.utils
 from nacl.public import PrivateKey, PublicKey, Box
 
+home_dir = os.path.expanduser('~')
+
+def getPrivateKey():
+    with subprocess.Popen(["sudo", "cat", "wg0.txt"], stdout=subprocess.PIPE) as p:
+        output = p.stdout.read().decode()
+    data = output.splitlines()
+    private_key = data[2].split(' ')[-1].strip()
+    return private_key
+
+
 def json_location(file_name):
-    home_dir = os.path.expanduser('~')
     full_path = os.path.join(home_dir, file_name)
     return os.path.exists(full_path)
 
 def state():
-    home_dir = os.path.expanduser('~') 
-    
     # If state.json is present, load
     if json_location('state.json'):
         with open(os.path.join(home_dir, 'state.json'),'r') as file:
@@ -27,17 +34,43 @@ def state():
             "Latest_IP": "",
             "Users": {}
             }
-        json_object = json.dumps(state, indent=4)
+        state = json.dumps(state, indent=4)
         with open(os.path.join(home_dir, 'state.json'), 'w') as file:
-            file.write(json_object)
+            file.write(state)
             # print(state)  
+    return state
+            
+def read_wg_preamble():
+    # Read wg0.txt
+    with subprocess.Popen(['sudo', 'head', '-n', '6', 'wg0.txt'], stdout=subprocess.PIPE) as p:
+        wgfile = p.stdout.read().decode()
     
-def getPrivateKey():
-    with subprocess.Popen(["sudo", "cat", "wg0.txt"], stdout=subprocess.PIPE) as p:
-        output = p.stdout.read().decode()
-    data = output.splitlines()
-    private_key = data[2].split(' ')[-1].strip()
-    return private_key
+    # Store Private Key 
+    pkey = getPrivateKey()
+    
+    # Create or load the state.json file
+    statejson = state()
+    
+    formatted_entries = ""
+    
+    # Iterate over the users in the state file and add entries to wg0.txt
+    for user, devices in statejson['Users'].items():
+        for device, device_data in devices.items():
+            formatted_entry = f"\n[Peer]\n" \
+                          f"{user} | {device}\n" \
+                          f"PublicKey = {device_data['PublicKey']}\n" \
+                          f"PreSharedKey = {device_data['PreSharedKey']}\n" \
+                          f"AllowedIPs = {device_data['AllowedIPs']}\n" \
+                          f"PersistentKeepAlive = 25\n"
+            formatted_entries += formatted_entry
+    formatted_entries = formatted_entries[:-1]
+    wgfile += formatted_entries
+    
+    with subprocess.Popen(["sudo", "tee", "wg0.txt"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL) as p:
+        p.communicate(wgfile.encode())
+    
+    return wgfile, pkey
+
 
 def assignIP(file_data):    
     # Assigning IPs if first entry default to 10.77.0.2 else increment latest IP by 1
@@ -56,9 +89,11 @@ def Encrypter(username, device, user_public):
     wg_private = getPrivateKey()
     wg_private = base64.b64decode(wg_private)
     wg_private = nacl.public.PrivateKey(wg_private)
+    
     # Decode User and assign user_public as a Public Key object
     user_public = base64.b64decode(user_public)
     user_public = nacl.public.PublicKey(user_public)
+    
     # Create a WireGuard Box
     wg_box = Box(wg_private, user_public)
     user_psk = wg_box.shared_key()
@@ -67,11 +102,7 @@ def Encrypter(username, device, user_public):
     # Encode the public key in base64
     user_public = base64.b64encode(user_public.encode())
     
-    # Robot side:
-    state()
-
     # Load state.json
-    home_dir = os.path.expanduser('~')
     with open(os.path.join(home_dir, 'state.json'),'r') as file:
         file_data = json.load(file)
 
@@ -87,7 +118,8 @@ def Encrypter(username, device, user_public):
         }
     }
     
-    # If user does not have a preexisting username, create one. If so, add new device to the list of devices asssociated with the username
+    # If user does not have a preexisting username, create one. 
+    # If so, add new device to the list of devices asssociated with the username
     if f"{username}" not in file_data["Users"]:
         file_data["Users"][f"{username}"] = Entry
     else:
@@ -97,20 +129,13 @@ def Encrypter(username, device, user_public):
         else:
             file_data["Users"][f"{username}"] |= Entry
     
-    # Output newly updated json file
+    # Output newly updated state.json file
     json_object = json.dumps(file_data, indent=4)
     with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
         outfile.write(json_object)
     
-    formatted_entry = f"\n\n[Peer]\n" \
-                          f"# {username} | {device} \n" \
-                          f"PublicKey = {Entry[device]['PublicKey']}\n" \
-                          f"PreSharedKey = {Entry[device]['PreSharedKey']}\n" \
-                          f"AllowedIPs = {Entry[device]['AllowedIPs']}\n" \
-                          f"PersistentKeepAlive = 25"
-    
-    with subprocess.Popen(["sudo", "tee", "-a", "wg0.txt"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL) as p:
-        p.communicate(formatted_entry.encode())
+    # Update wg0.txt with new state.json file
+    read_wg_preamble()        
 
     # User side:
     # Combine both values into a string
@@ -120,9 +145,14 @@ def Encrypter(username, device, user_public):
     encrypted = base64.b64encode(wg_box.encrypt(message.encode()))
     print(f"\nHere is your Encrypted Config: {encrypted.decode()}\n")
 
-# # Command Line Arguments
-if len(sys.argv) == 4:
+# Command Line Arguments
+if len(sys.argv) == 2:
+    print("Running init... \n")
+    wgfile,pkey = read_wg_preamble()
+    print(wgfile)
+    print("\nDone")
     
+elif len(sys.argv) == 4:
     # Assign variables
     sys.argv.pop(0)
     username = sys.argv.pop(0)
@@ -137,4 +167,6 @@ if len(sys.argv) == 4:
     print("Done")
 else:
     # Invalid Command
-    print("Usage: Robot.py <User>, <Device>, <Device_Public>", file=sys.stderr) 
+    print("Usage")
+    print("init: Robot.py, <init>", file=sys.stderr)
+    print("Encrypt: Robot.py <User>, <Device>, <Device_Public>", file=sys.stderr) 

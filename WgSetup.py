@@ -26,7 +26,6 @@ def findrobot(robot):
             
             
 def wgdata(device):    
-    home_dir = os.path.expanduser('~')
     wg_data_dir = os.path.join(home_dir, '.wireguard_data')
     
     # Check if .wireguard_data exists
@@ -59,9 +58,8 @@ def Generate(robot, device):
     userprivate = base64.b64encode(userprivate.encode())
     userpublic = base64.b64encode(userpublic.encode())
     
-    print(f"\nPrivate Key stored at {device_dir}")
     print(f"\nHere is your Public Key: {userpublic.decode()}")
-    print(f"Public Key stored at {device_dir}\n")
+    print(f"Public Key and Private Key stored at {device_dir}\n")
     
     # Write the private and public keys as strings to the home directory
     with open(os.path.join(device_dir, f'{device}_private.txt'), 'wb') as fp:
