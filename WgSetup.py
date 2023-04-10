@@ -15,7 +15,7 @@ robot_table = {
         'flynn': 'Public Key3'
         }
 
-def findrobot(robot):
+def find_robot(robot):
     robot_lower = robot.lower()
     if robot_lower not in robot_table:
         print(f"{robot} not found. \n")
@@ -25,7 +25,7 @@ def findrobot(robot):
         sys.exit(1)
             
             
-def wgdata(device):    
+def wg_data(device):    
     wg_data_dir = os.path.join(home_dir, '.wireguard_data')
     
     # Check if .wireguard_data exists
@@ -48,56 +48,56 @@ def wgdata(device):
     return device_dir    
        
 
-def Generate(robot, device):
+def generate_keys(robot, device):
     # Check if robot exists
-    findrobot(robot)
+    find_robot(robot)
     # Create Key Pairs
-    userprivate = PrivateKey.generate()
-    userpublic = userprivate.public_key
+    user_private_key = PrivateKey.generate()
+    user_public_key = user_private_key.public_key
     
-    userprivate = base64.b64encode(userprivate.encode())
-    userpublic = base64.b64encode(userpublic.encode())
+    user_private_key = base64.b64encode(user_private_key.encode())
+    user_public_key = base64.b64encode(user_public_key.encode())
     
-    print(f"\nHere is your Public Key: {userpublic.decode()}")
+    print(f"\nHere is your Public Key: {user_public_key.decode()}")
     print(f"Public Key and Private Key stored at {device_dir}\n")
     
     # Write the private and public keys as strings to the home directory
     with open(os.path.join(device_dir, f'{device}_private.txt'), 'wb') as fp:
-        fp.write(userprivate)
+        fp.write(user_private_key)
         
     with open(os.path.join(device_dir, f'{device}_public.txt'), 'wb') as fp:
-        fp.write(userpublic)
+        fp.write(user_public_key)
     
-def Decrypter(robot, device, encrpyted):
+def decrypt_config(robot, device, encrpyted_config):
     # Check if robot exists
-    findrobot(robot)  
+    find_robot(robot)  
      
     # Find private key
     private_dir = f'{device_dir}/{device}_private.txt'
     # run the command with sudo privileges and capture the output
     proc = subprocess.Popen(['sudo', 'cat', private_dir], stdout=subprocess.PIPE)
-    user_private = proc.communicate()[0]
+    user_private_key = proc.communicate()[0]
         
     # Decode all base64 variables
-    encrypted = base64.b64decode(encrpyted)
+    encrypted_config = base64.b64decode(encrpyted_config)
     robot = base64.b64decode(robot_table[robot.lower()])
-    user_private = base64.b64decode(user_private)
+    user_private_key = base64.b64decode(user_private_key)
     
     # Convert into Key objects
     robot = nacl.public.PublicKey(robot)
-    user_private = nacl.public.PrivateKey(user_private)
+    user_private_key = nacl.public.PrivateKey(user_private_key)
         
         
     # Create User Box
-    user_box = Box(user_private, robot)
+    user_box = Box(user_private_key, robot)
     
     # Decrypt encrypted config
-    decoded = user_box.decrypt(encrypted)
+    decoded_config = user_box.decrypt(encrypted_config)
     
-    print(f"\nHere is your Decoded Config: {decoded.decode()}")
+    print(f"\nHere is your Decoded Config: {decoded_config.decode()}")
     # Export to text file
     with open(os.path.join(device_dir, f'{device}_decrypted_config.txt'), 'w') as fp:
-        fp.write(decoded.decode())
+        fp.write(decoded_config.decode())
     
     print(f"Decoded Config stored at {device_dir}\n")
 
@@ -111,8 +111,8 @@ if len(sys.argv) == 3:
     device = device.lower()
     
     # assign where to store device info
-    device_dir = wgdata(device)
-    Generate(robot, device)
+    device_dir = wg_data(device)
+    generate_keys(robot, device)
     print("Done")
     
 elif len(sys.argv) == 4:
@@ -122,11 +122,11 @@ elif len(sys.argv) == 4:
     robot = sys.argv.pop(0)
     device = sys.argv.pop(0)
     device = device.lower()
-    encrypted = sys.argv.pop(0)
-    device_dir = wgdata(device)
+    encrypted_config = sys.argv.pop(0)
+    device_dir = wg_data(device)
     
     # Run decrypter    
-    Decrypter(robot, device, encrypted)
+    decrypt_config(robot, device, encrypted_config)
     
     print("Done")
     

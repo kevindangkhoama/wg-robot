@@ -4,3 +4,18 @@ PrivateKey = IRLX3UdBXVjHvRJxWYIq8CVAfzBzEAgHKAO2oFCmd84=
 ListenPort = 51820
 PostUp = /etc/wireguard/start-nat.sh
 PostDown = /etc/wireguard/stop-nat.sh
+
+
+[Peer]
+kevin | phone12663
+PublicKey = HAk25ZhrYg/TjD0vR/udbqKZ4MkKORO6II7zvJZVVys=
+PreSharedKey = 3mtCpwgFoh7LvUDg+WMorFZiQhFL/agbU71PLHSyclI=
+AllowedIPs = 10.77.0.2
+PersistentKeepAlive = 25
+
+[Peer]
+kevin | phone1223
+PublicKey = HAk25ZhrYg/TjD0vR/udbqKZ4MkKORO6II7zvJZVVys=
+PreSharedKey = 3mtCpwgFoh7LvUDg+WMorFZiQhFL/agbU71PLHSyclI=
+AllowedIPs = 10.77.0.3
+PersistentKeepAlive = 2

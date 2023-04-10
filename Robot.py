@@ -10,84 +10,71 @@ from nacl.public import PrivateKey, PublicKey, Box
 
 home_dir = os.path.expanduser('~')
 
-def getPrivateKey():
-    with subprocess.Popen(["sudo", "cat", "wg0.txt"], stdout=subprocess.PIPE) as p:
-        output = p.stdout.read().decode()
-    data = output.splitlines()
-    private_key = data[2].split(' ')[-1].strip()
-    return private_key
-
-
-def json_location(file_name):
-    full_path = os.path.join(home_dir, file_name)
-    return os.path.exists(full_path)
-
-def state():
-    # If state.json is present, load
-    if json_location('state.json'):
-        with open(os.path.join(home_dir, 'state.json'),'r') as file:
-            state = json.load(file)
-            # print(state)
-    else:
-        # Create state.json
+def read_state():
+    state_path = os.path.join(home_dir, 'state.json')
+    if not os.path.exists(state_path):
         state = {
             "Latest_IP": "",
             "Users": {}
-            }
+        }
         state = json.dumps(state, indent=4)
-        with open(os.path.join(home_dir, 'state.json'), 'w') as file:
-            file.write(state)
-            # print(state)  
-    return state
+        with open(os.path.join(home_dir, 'state.json'), 'w') as f:
+            f.write(state)
             
+    with open(os.path.join(home_dir, 'state.json'),'r') as file:
+            state = json.load(file)
+    return state
+        
 def read_wg_preamble():
     # Read wg0.txt
     with subprocess.Popen(['sudo', 'head', '-n', '6', 'wg0.txt'], stdout=subprocess.PIPE) as p:
-        wgfile = p.stdout.read().decode()
+        preamble = p.stdout.read().decode()
     
     # Store Private Key 
-    pkey = getPrivateKey()
+    with subprocess.Popen(["sudo", "cat", "wg0.txt"], stdout=subprocess.PIPE) as p:
+        output = p.stdout.read().decode()
+    data = output.splitlines()
+    robot_private_key = data[2].split(' ')[-1].strip()
     
-    # Create or load the state.json file
-    statejson = state()
-    
+    return preamble, robot_private_key
+
+
+def write_wg(preamble, state):
     formatted_entries = ""
     
     # Iterate over the users in the state file and add entries to wg0.txt
-    for user, devices in statejson['Users'].items():
+    for user, devices in state['Users'].items():
         for device, device_data in devices.items():
             formatted_entry = f"\n[Peer]\n" \
                           f"{user} | {device}\n" \
                           f"PublicKey = {device_data['PublicKey']}\n" \
                           f"PreSharedKey = {device_data['PreSharedKey']}\n" \
                           f"AllowedIPs = {device_data['AllowedIPs']}\n" \
-                          f"PersistentKeepAlive = 25\n"
-            formatted_entries += formatted_entry
+                          f"PersistentKeepAlive = 25"
+            formatted_entries += "\n" + formatted_entry
     formatted_entries = formatted_entries[:-1]
-    wgfile += formatted_entries
+    preamble += formatted_entries
     
     with subprocess.Popen(["sudo", "tee", "wg0.txt"], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL) as p:
-        p.communicate(wgfile.encode())
-    
-    return wgfile, pkey
-
-
-def assignIP(file_data):    
+        p.communicate(preamble.encode())
+        
+        
+def assign_IP(state):    
     # Assigning IPs if first entry default to 10.77.0.2 else increment latest IP by 1
-    if file_data["Latest_IP"] == "":
-        file_data["Latest_IP"] = "10.77.0.2"
+    if state["Latest_IP"] == "":
+        state["Latest_IP"] = "10.77.0.2"
         user_ip = "10.77.0.2"
     else:
-        latest_IP_int = ipaddress.IPv4Address(file_data["Latest_IP"])
+        latest_IP_int = ipaddress.IPv4Address(state["Latest_IP"])
         latest_IP_int +=1
-        file_data["Latest_IP"] = str(ipaddress.IPv4Address(latest_IP_int))
+        state["Latest_IP"] = str(ipaddress.IPv4Address(latest_IP_int))
         user_ip = str(ipaddress.IPv4Address(latest_IP_int))
     return user_ip
 
-def Encrypter(username, device, user_public):
+
+def add_user_to_state(username, device, user_public, state, robot_private_key):
     # Decode and assign wg_private as a Private Key object
-    wg_private = getPrivateKey()
-    wg_private = base64.b64decode(wg_private)
+    wg_private = base64.b64decode(robot_private_key)
     wg_private = nacl.public.PrivateKey(wg_private)
     
     # Decode User and assign user_public as a Public Key object
@@ -101,16 +88,12 @@ def Encrypter(username, device, user_public):
     
     # Encode the public key in base64
     user_public = base64.b64encode(user_public.encode())
-    
-    # Load state.json
-    with open(os.path.join(home_dir, 'state.json'),'r') as file:
-        file_data = json.load(file)
 
     # Assign IP:
-    user_ip = assignIP(file_data)
+    user_ip = assign_IP(state)
     
     # New User to be added    
-    Entry = {
+    entry = {
         f"{device}": {
             "PublicKey" : user_public.decode(),
             "PreSharedKey" : str(user_psk.decode()),
@@ -120,53 +103,66 @@ def Encrypter(username, device, user_public):
     
     # If user does not have a preexisting username, create one. 
     # If so, add new device to the list of devices asssociated with the username
-    if f"{username}" not in file_data["Users"]:
-        file_data["Users"][f"{username}"] = Entry
+    if f"{username}" not in state["Users"]:
+        state["Users"][f"{username}"] = entry
     else:
-        if f"{device}" in file_data["Users"][f"{username}"]:
+        if f"{device}" in state["Users"][f"{username}"]:
             print("Error: Device Already Added")
-            sys.exit()
+            sys.exit(1)
         else:
-            file_data["Users"][f"{username}"] |= Entry
+            state["Users"][f"{username}"] |= entry
     
     # Output newly updated state.json file
-    json_object = json.dumps(file_data, indent=4)
-    with open(os.path.join(home_dir, 'state.json'), 'w') as outfile:
-        outfile.write(json_object)
+    state = json.dumps(state, indent=4)
+    with open(os.path.join(home_dir, 'state.json'), 'w') as f:
+        f.write(state)
     
     # Update wg0.txt with new state.json file
-    read_wg_preamble()        
+    state = read_state()
+    write_wg(preamble, state)
+            
 
     # User side:
     # Combine both values into a string
     message = f"USER_IP = {user_ip} | PSK = {user_psk.decode()}"
     
     # Encrypt IP and PSK and return
-    encrypted = base64.b64encode(wg_box.encrypt(message.encode()))
-    print(f"\nHere is your Encrypted Config: {encrypted.decode()}\n")
+    encrypted_config = base64.b64encode(wg_box.encrypt(message.encode()))
+    return state, encrypted_config
+
+
+
 
 # Command Line Arguments
-if len(sys.argv) == 2:
-    print("Running init... \n")
-    wgfile,pkey = read_wg_preamble()
-    print(wgfile)
-    print("\nDone")
-    
-elif len(sys.argv) == 4:
-    # Assign variables
-    sys.argv.pop(0)
-    username = sys.argv.pop(0)
-    username = username.lower()
-    device = sys.argv.pop(0)
-    device = device.lower()
-    user_public = sys.argv.pop(0)
-
-    # Run Encrypter
-    print("Encrypting...")
-    Encrypter(username, device, user_public)
-    print("Done")
-else:
-    # Invalid Command
+if len(sys.argv) == 1:
     print("Usage")
-    print("init: Robot.py, <init>", file=sys.stderr)
-    print("Encrypt: Robot.py <User>, <Device>, <Device_Public>", file=sys.stderr) 
+    print("init: Robot.py \"init\"", file=sys.stderr)
+    print("Encrypt: Robot.py <User> <Device> <Device_Public>", file=sys.stderr)
+    exit(0)
+
+executable = sys.argv.pop(0)
+command = sys.argv.pop(0)
+
+# Needed for real robot
+if command == "configure":
+    exit(0)
+
+preamble,robot_private_key = read_wg_preamble()
+
+# Robot: CheckoutDatum
+state = read_state()
+
+if command != "init":
+    username = sys.argv.pop(0).lower()
+    device = sys.argv.pop(0).lower()
+    user_public = sys.argv.pop(0)
+    state, encrypted_config = add_user_to_state(username, device, user_public, state, robot_private_key)
+    # add_user_to_state generates an error message if needed and returns False, ""
+    # otherwise returns True, "<base64 encoded encrypted config string>"
+    print(f"\nEncrypted config: {encrypted_config}\n")
+
+
+# write_wg(preamble, state)
+
+# if reload:
+#   print("(reloading wireguard)")
