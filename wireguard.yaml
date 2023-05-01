@@ -1,0 +1,26 @@
+---
+Help:
+- Keywords: [ "wireguard", "vpn" ]
+  Helptext:
+  - (bot), add-device <device name> <public key> - configure new vpn connection for your device
+  - (bot), list-vpn-devices - list all user's current devices
+  - (bot), get-vpn <device> - retrieves the information needed for 'Wg.Setup.py'
+  - (bot), delete-device <device> - deletes the user's device
+  - (bot), list-vpn-users - list all configured vpn users (admin)
+  - (bot), delete-vpn-user <username>- deletes a user and all their devices (admin)
+CommandMatchers:
+- Regex: '(?i:add[- ]device ([.\w-]+) ([.\w\/+=-]+))'
+  Command: add-device
+- Regex: '(?i:list[- ]vpn[- ]users)'
+  Command: admin-list-vpn-users
+- Regex: '(?i:delete[- ]vpn[- ]user ([.\w-]+))'
+  Command: admin-delete-vpn-user
+- Regex: '(?i:list[- ]vpn[- ]devices)'
+  Command: list-vpn-devices
+- Regex: '(?i:delete[- ]device ([.\w-]+))'
+  Command: delete-device
+- Regex: '(?i:get[- ]vpn ([.\w-]+))'
+  Command: get-vpn
+AdminCommands:
+- admin-list-vpn-users
+- admin-delete-vpn-user
