@@ -1,4 +1,4 @@
-# 🛡️ VPN Provisioning Plugin for Slack-Based Infrastructure Automation
+# VPN Provisioning Plugin for Slack-Based Infrastructure Automation
 
 ## Overview
 This project is a custom plugin built for **GopherBot**, an open-source ChatOps automation tool. It enables secure and automated **VPN provisioning** for internal users via **Slack commands**, integrating with **WireGuard**, **PyNaCl**, and system-level networking scripts.
@@ -7,16 +7,16 @@ Originally developed during my internship at **Welld Health**, this plugin empow
 
 ---
 
-## 🔧 Key Features
-- 🔐 **Asymmetric encryption** for secure key management using `PyNaCl`
-- 🧰 **WireGuard VPN configuration** automation with private/public key pairing
-- 💬 **Slack command integration** via GopherBot using `wireguard.yaml` definitions
-- ⚙️ **System-level VPN setup** triggered via WireGuard config + Bash NAT scripts
-- 🧑‍💻 Real-time VPN provisioning for new devices and users
+##  Key Features
+-  **Asymmetric encryption** for secure key management using `PyNaCl`
+-  **WireGuard VPN configuration** automation with private/public key pairing
+-  **Slack command integration** via GopherBot using `wireguard.yaml` definitions
+-  **System-level VPN setup** triggered via WireGuard config + Bash NAT scripts
+-  Real-time VPN provisioning for new devices and users
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 | File                      | Description                                                       |
 |---------------------------|-------------------------------------------------------------------|
@@ -30,7 +30,7 @@ Originally developed during my internship at **Welld Health**, this plugin empow
 
 ---
 
-## ⚙️ Tech Stack
+## Tech Stack
 - **Python**
 - **GopherBot** (Slack ChatOps engine)
 - **PyNaCl** for encryption
@@ -40,7 +40,7 @@ Originally developed during my internship at **Welld Health**, this plugin empow
 
 ---
 
-## 🧪 Example Slack Commands
+## Example Slack Commands
 
 ```text
 (bot), add-device kevins-laptop <public_key>
